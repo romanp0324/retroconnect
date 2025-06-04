@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XP Chatroom</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Chat Window -->
+<div class="window animated-window" id="chatWindow">
+  <div class="title-bar">Chatroom - Global Chat <button class="close-btn">✖</button></div>
+  <div class="chat-area"></div>
+  <div class="input-area">
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button class="send-btn">Send</button>
+  </div>
+</div>
+
+<!-- XP Progress Bar -->
+<div class="xp-bar-container">
+  <div class="xp-bar" id="xpBar"></div>
+</div>
+
+<!-- Taskbar & Start Menu -->
+<div class="taskbar">
+  <button id="startButton" class="start-button">Start</button>
+  <div id="startMenu" class="start-menu hidden">
+    <ul>
+      <li onclick="createWindow('⚙ Settings', 'Adjust settings here.')">⚙ Settings</li>
+      <li onclick="createWindow('🏆 Achievements', 'Your XP progress.')">🏆 Achievements</li>
+      <li onclick="createWindow('👤 Profile Viewing', 'User profile details.')">👤 Profile Viewing</li>
+      <li onclick="createWindow('💬 Chats', 'Access chats here.')">💬 Chats</li>
+      <li onclick="createWindow('🔗 Join Server', 'Enter server details.')">🔗 Join Server</li>
+      <li onclick="createWindow('➕ Create Server', 'Set up a new server.')">➕ Create Server</li>
+    </ul>
+  </div>
+  <div class="task-buttons"></div>
+  <div class="clock" id="clock"></div>
+</div>
+
+<!-- Background Music -->
+<audio id="bgMusic" loop>
+  <source id="musicSource" src="song1.mp3" type="audio/mp3">
+</audio>
+<div class="music-controls">
+  <button id="musicToggle">Play Music</button>
+  <button id="prevSong">◀ Previous</button>
+  <button id="nextSong">Next ▶</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
