@@ -1,0 +1,627 @@
+﻿Html:
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pusher Chat Demo with Friends Menu</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body { font-family: sans-serif; background: #23272f; color: #fff; margin:0; }
+    #container { display: flex; height: 100vh; }
+    #friendsMenu {
+      width: 180px; background: #181b20; border-right: 1px solid #333; padding: 0;
+      display: flex; flex-direction: column; align-items: stretch;
+    }
+    #friendsTitle { padding: 14px 10px 10px 10px; font-size: 1.1em; color:#8ecaff; }
+    #friendsList { flex: 1; overflow-y: auto; }
+    .friendItem {
+      cursor: pointer;
+      padding: 10px;
+      border-bottom: 1px solid #24262b;
+      color: #fff;
+      background: none;
+      text-align:left;
+      transition: background 0.18s;
+    }
+    .friendItem.selected, .friendItem:hover { background: #2a3140; color: #b3e77a;}
+    #main { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+    #settings { margin-bottom: 12px; padding: 12px; background: #181b20; border-radius: 7px; border: 1px solid #444;}
+    #chat { flex:1; overflow:auto; border:1px solid #444; padding:10px; margin-bottom:10px; background:#181b20; border-radius:7px;}
+    #msg { width: 70%; }
+    #username, #msg { padding: 6px; border-radius: 4px; border: 1px solid #888;}
+    #sendBtn, #joinBtn { padding: 6px 16px; border-radius: 4px; border: none; background: #4b89dc; color: #fff; cursor:pointer;}
+    #sendBtn:disabled { background: #888; cursor: not-allowed;}
+    #joinBtn:disabled { background: #888; cursor: not-allowed;}
+    #loginStatus { margin: 8px 0; color: #b3e77a; }
+    .statusBar { font-size: 0.95em; color: #b3e77a; margin-bottom: 3px; }
+    .welcome { color: #8ecaff; margin-bottom: 10px;}
+    b { color: #ffd966;}
+    @media (max-width: 600px) {
+      #container { flex-direction: column; }
+      #friendsMenu { flex-direction: row; width: 100%; height: auto; border-right: none; border-bottom: 1px solid #333;}
+      #main { padding: 8px;}
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="friendsMenu">
+      <div id="friendsTitle">Friends</div>
+      <div id="friendsList"></div>
+    </div>
+    <div id="main">
+      <div class="welcome">Welcome to the Pusher Chat Demo!</div>
+      <div id="settings">
+        <label>Username: <input id="username" placeholder="Your name" autocomplete="off"></label>
+        <button id="joinBtn">Join Chat</button>
+      </div>
+      <div class="statusBar" id="loginStatus"></div>
+      <div id="chat"></div>
+      <input id="msg" placeholder="Type a message..." autocomplete="off" disabled>
+      <button id="sendBtn" disabled>Send</button>
+    </div>
+  </div>
+  <script src="https://js.pusher.com/7.2/pusher.min.js"></script>
+  <script>
+    // ==== CONFIGURATION ====
+    const PUSHER_APP_KEY = 'YOUR_APP_KEY';
+    const PUSHER_CLUSTER = 'YOUR_APP_CLUSTER';
+    const PUSHER_TRIGGER_URL = 'http://localhost:4000/message'; // or your backend URL
+    // Add your friends here (static list for demo)
+    const FRIENDS = ["alice", "bob", "carol", "dave"];
+    // =======================
+
+
+    let username = "", currentRoom = "general", channel, pusherClient;
+    let joined = false;
+    let selectedFriend = null;
+
+
+    // Build Friends Menu
+    const friendsList = document.getElementById('friendsList');
+    function renderFriendsMenu() {
+      friendsList.innerHTML = "";
+      // Show group/general chat on top
+      const group = document.createElement('div');
+      group.textContent = "🌐 Group Chat";
+      group.className = "friendItem" + (selectedFriend === null ? " selected" : "");
+      group.onclick = function() { selectFriend(null); };
+      friendsList.appendChild(group);
+      // Friends
+      FRIENDS.forEach(friend => {
+        const item = document.createElement('div');
+        item.textContent = "👤 " + friend;
+        item.className = "friendItem" + (selectedFriend === friend ? " selected" : "");
+        item.onclick = function() { selectFriend(friend); };
+        friendsList.appendChild(item);
+      });
+    }
+    function selectFriend(friend) {
+      if (selectedFriend === friend) return;
+      selectedFriend = friend;
+      renderFriendsMenu();
+      if (!joined) return;
+      // Unsubscribe old channel
+      if (channel) channel.unbind_all() && pusherClient.unsubscribe(channel.name);
+      if (friend) {
+        currentRoom = privateRoomId(username, friend);
+        document.getElementById('loginStatus').textContent = "You are chatting privately with: " + friend;
+      } else {
+        currentRoom = "general";
+        document.getElementById('loginStatus').textContent = "You are in the group chat.";
+      }
+      document.getElementById('chat').innerHTML = "";
+      subscribeToRoom();
+    }
+    // Private room id is always the same for any two users
+    function privateRoomId(user1, user2) {
+      return "private-" + [user1, user2].sort().join('-');
+    }
+    renderFriendsMenu();
+
+
+    document.getElementById('sendBtn').disabled = true;
+    document.getElementById('msg').disabled = true;
+
+
+    document.getElementById('joinBtn').onclick = function() {
+      username = document.getElementById('username').value.trim().toLowerCase();
+      if (!username) return alert("Enter your name!");
+      if (!FRIENDS.includes(username)) FRIENDS.unshift(username); // add yourself for demo
+      joined = true;
+      renderFriendsMenu();
+      document.getElementById('loginStatus').textContent = "You are in the group chat.";
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('msg').disabled = false;
+      document.getElementById('username').disabled = true;
+      document.getElementById('joinBtn').disabled = true;
+      document.getElementById('msg').focus();
+      selectFriend(null);
+    };
+
+
+    document.getElementById('username').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('joinBtn').click();
+    });
+
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('msg').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+
+    function subscribeToRoom() {
+      if (!pusherClient) {
+        pusherClient = new Pusher(PUSHER_APP_KEY, {
+          cluster: PUSHER_CLUSTER,
+          encrypted: true
+        });
+      }
+      channel = pusherClient.subscribe('chat-' + currentRoom);
+      channel.bind('new-message', function(data) {
+        addMessage(data.user, data.text);
+      });
+    }
+
+
+    function sendMessage() {
+      const text = document.getElementById('msg').value;
+      if (!username || !text) return;
+      fetch(PUSHER_TRIGGER_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user: username, text, room: currentRoom})
+      });
+      document.getElementById('msg').value = '';
+      document.getElementById('msg').focus();
+    }
+
+
+    function addMessage(user, text) {
+      const chat = document.getElementById('chat');
+      chat.innerHTML += '<div><b>' + escapeHtml(user) + ':</b> ' + escapeHtml(text) + '</div>';
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, s => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[s]));
+    }
+  </script>
+</body>
+</html>
+
+
+Css:
+:root {
+  --bg: #222;
+  --fg: #fff;
+  --accent: #3498db;
+  --window-bg: #333;
+  --header-bg: #444;
+  --border: #555;
+  --input-bg: #222;
+  --input-fg: #fff;
+  --button-bg: #444;
+  --button-fg: #fff;
+  --high-contrast-bg: #000;
+  --high-contrast-fg: #fff;
+}
+
+
+/* Dark Mode */
+body.dark {
+  background: var(--bg);
+  color: var(--fg);
+}
+body.dark .window { background: var(--window-bg); border: 2px solid var(--border);}
+body.dark .window-header { background: var(--header-bg); color: var(--fg);}
+body.dark input, body.dark .chat-input-bar { background: var(--input-bg); color: var(--input-fg);}
+body.dark button { background: var(--button-bg); color: var(--button-fg);}
+body.dark .emoji-picker { background: var(--window-bg); }
+
+
+/* Windows 95 Theme */
+body.win95 {
+  background: #008080;
+  color: #222;
+}
+body.win95 .window { background: #c0c0c0; border: 2px solid #333;}
+body.win95 .window-header { background: #000080; color: #fff;}
+body.win95 input, body.win95 .chat-input-bar { background: #fff; color: #222;}
+body.win95 button { background: #e0e0e0; color: #222;}
+body.win95 .emoji-picker { background: #c0c0c0; }
+
+
+/* Cyberpunk Neon Theme */
+body.cyberpunk {
+  background: #12002f;
+  color: #0ff;
+}
+body.cyberpunk .window { background: #1a0033; border: 2px solid #ff00cc;}
+body.cyberpunk .window-header { background: #ff00cc; color: #0ff;}
+body.cyberpunk input, body.cyberpunk .chat-input-bar { background: #2f004f; color: #0ff;}
+body.cyberpunk button { background: #ff00cc; color: #0ff;}
+body.cyberpunk .emoji-picker { background: #2f004f; }
+
+
+/* Minimalist Light Mode */
+body.light {
+  background: #f7f7f7;
+  color: #111;
+}
+body.light .window { background: #fff; border: 2px solid #ccc;}
+body.light .window-header { background: #eee; color: #111;}
+body.light input, body.light .chat-input-bar { background: #f7f7f7; color: #111;}
+body.light button { background: #f0f0f0; color: #111;}
+body.light .emoji-picker { background: #fff; }
+
+
+/* High Contrast Mode */
+body.high-contrast {
+  background: var(--high-contrast-bg);
+  color: var(--high-contrast-fg);
+}
+body.high-contrast .window, body.high-contrast .window-header, body.high-contrast .emoji-picker,
+body.high-contrast .chat-input-bar, body.high-contrast input, body.high-contrast button {
+  background: var(--high-contrast-bg) !important;
+  color: var(--high-contrast-fg) !important;
+  border: 2px solid #fff !important;
+}
+
+
+/* Windows */
+.window {
+  position: absolute;
+  width: 320px;
+  min-height: 220px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  z-index: 10;
+  top: 80px; left: 80px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  transition: box-shadow 0.2s;
+}
+.window-header {
+  cursor: move;
+  padding: 8px 12px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.window-content {
+  padding: 12px;
+}
+.close-btn {
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  background: none;
+  color: inherit;
+}
+.hidden { display: none; }
+#chat-messages {
+  height: 120px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+  background: rgba(0,0,0,0.04);
+  padding: 6px;
+  border-radius: 6px;
+}
+.chat-input-bar {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-top: 5px;
+}
+.chat-input-bar input {
+  flex: 1;
+  padding: 7px;
+  border-radius: 5px;
+  border: 1px solid #aaa;
+}
+#emoji-btn { width: 32px; font-size: 18px; }
+#send-btn { padding: 7px 16px; }
+.emoji-picker {
+  display: none;
+  margin-top: 2px;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.emoji-picker span {
+  margin: 2px;
+  cursor: pointer;
+}
+.typing-indicator {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+
+#taskbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 36px;
+  background: #222;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  z-index: 100;
+}
+#taskbar button { margin-right: 8px; }
+#taskbar-items span {
+  margin-right: 6px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+
+/* Start Menu Popup Style */
+#start-menu {
+  position: fixed !important;
+  left: 10px !important;
+  bottom: 46px !important; /* just above the taskbar */
+  width: 200px !important;
+  min-height: 140px !important;
+  z-index: 150 !important;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  padding: 0;
+  cursor: default;
+}
+#start-menu .window-header {
+  display: none;
+}
+#start-menu .window-content {
+  padding: 10px 0 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+#start-btn.active {
+  outline: 2px solid var(--accent, #3498db);
+}
+
+
+/* Responsive */
+@media (max-width: 600px) {
+  .window { width: 98vw; min-width: 0; left: 1vw !important; }
+  #start-menu { width: 90vw !important; left: 5vw !important; }
+}
+
+
+           Mvds nm n,fesanem dfm fa 
+
+
+Javascript:
+
+
+// --- Draggable windows ---
+let currentDrag = null, offsetX = 0, offsetY = 0;
+document.querySelectorAll('.draggable').forEach(win => {
+  const header = win.querySelector('.window-header');
+  header.addEventListener('mousedown', e => {
+    currentDrag = win;
+    offsetX = e.clientX - win.offsetLeft;
+    offsetY = e.clientY - win.offsetTop;
+    win.style.zIndex = 200;
+  });
+});
+window.addEventListener('mousemove', e => {
+  if (!currentDrag) return;
+  currentDrag.style.left = (e.clientX - offsetX) + 'px';
+  currentDrag.style.top = (e.clientY - offsetY) + 'px';
+});
+window.addEventListener('mouseup', () => { currentDrag = null; });
+
+
+// --- Window management (no overlaps) ---
+const windowIds = ['chat-window', 'theme-window', 'auth-window'];
+let openWindows = [];
+function openWindow(id) {
+  if (id !== 'start-menu') {
+    const win = document.getElementById(id);
+    win.classList.remove('hidden');
+    // Only add if not already open
+    if (!openWindows.includes(id)) {
+      // Find a non-overlapping position
+      let pos = 60 + openWindows.length * 32;
+      win.style.left = pos + 'px';
+      win.style.top = pos + 'px';
+      win.style.zIndex = 100 + openWindows.length;
+      openWindows.push(id);
+    }
+    refreshTaskbar();
+    // Hide start menu if open
+    startMenu.classList.add('hidden');
+    startBtn.classList.remove('active');
+  }
+}
+function closeWindow(id) {
+  document.getElementById(id).classList.add('hidden');
+  openWindows = openWindows.filter(w => w !== id);
+  refreshTaskbar();
+}
+function refreshTaskbar() {
+  const bar = document.getElementById('taskbar-items');
+  bar.innerHTML = '';
+  openWindows.forEach(id => {
+    let label = id.replace('-window', '').replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    bar.innerHTML += `<span onclick="openWindow('${id}')">${label}</span>`;
+  });
+}
+
+
+// --- Start Menu Popup ---
+const startBtn = document.getElementById('start-btn');
+const startMenu = document.getElementById('start-menu');
+startBtn.onclick = (e) => {
+  e.stopPropagation();
+  const isOpen = !startMenu.classList.contains('hidden');
+  if (isOpen) {
+    startMenu.classList.add('hidden');
+    startBtn.classList.remove('active');
+  } else {
+    startMenu.classList.remove('hidden');
+    startBtn.classList.add('active');
+  }
+};
+document.body.addEventListener('click', e => {
+  // Close start menu if clicking outside
+  if (!startMenu.contains(e.target) && e.target !== startBtn) {
+    startMenu.classList.add('hidden');
+    startBtn.classList.remove('active');
+  }
+});
+
+
+// When clicking a Start Menu item, hide the menu and open window
+['chat-window', 'theme-window', 'auth-window'].forEach(id => {
+  const btn = document.querySelector(`#start-menu button[onclick*="${id}"]`);
+  if (btn) {
+    btn.onclick = function() {
+      openWindow(id);
+      startMenu.classList.add('hidden');
+      startBtn.classList.remove('active');
+    };
+  }
+});
+
+
+// --- Theme switcher ---
+const setTheme = name => {
+  document.body.className = name;
+  if (name === 'custom') {
+    document.body.style.setProperty('--bg', customColor.value);
+    document.body.style.setProperty('--accent', customColor.value);
+  } else {
+    document.body.style = '';
+  }
+};
+const radios = document.querySelectorAll('input[name="theme"]');
+const customColor = document.getElementById('custom-color');
+radios.forEach(radio => radio.onchange = () => setTheme(radio.value));
+customColor.oninput = () => setTheme('custom');
+
+
+// --- Chat logic (in-memory, stub for Firebase) + SPAM PREVENTION: 20 messages per 1 min max ---
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+
+
+// Spam prevention variables
+let spamTimeout = null;
+let spamQueue = []; // Timestamps of the last N messages
+const SPAM_MAX_QUEUE = 20;     // max messages allowed per window
+const SPAM_QUEUE_WINDOW_MS = 60 * 1000; // 1 minute
+const SPAM_BLOCK_TIME_MS = 60 * 1000;   // Block for 1 minute
+
+
+function setInputDisabled(disabled, msg) {
+  sendBtn.disabled = disabled;
+  chatInput.disabled = disabled;
+  chatInput.placeholder = disabled ? msg : "Type a message...";
+  if (!disabled) chatInput.placeholder = "Type a message...";
+}
+
+
+function addMessage(text, user = "You") {
+  const div = document.createElement('div');
+  div.textContent = user + ': ' + text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+
+function checkSpamQueue() {
+  const now = Date.now();
+  // Remove timestamps older than 1 minute
+  spamQueue = spamQueue.filter(ts => now - ts < SPAM_QUEUE_WINDOW_MS);
+  return spamQueue.length;
+}
+
+
+sendBtn.onclick = () => {
+  const now = Date.now();
+  const txt = chatInput.value.trim();
+
+
+  if (txt === "") return;
+
+
+  // --- Advanced spam prevention ---
+  // Check if user sent 20+ messages in 1 minute
+  spamQueue.push(now);
+  const msgCount = checkSpamQueue();
+  if (msgCount > SPAM_MAX_QUEUE) {
+    setInputDisabled(true, "Spam detected! Wait 1 min...");
+    spamTimeout = setTimeout(() => {
+      setInputDisabled(false);
+      // Reset queue to only contain any within the last minute after block
+      checkSpamQueue();
+    }, SPAM_BLOCK_TIME_MS);
+    return;
+  }
+
+
+  // Passed spam checks
+  addMessage(txt);
+  chatInput.value = '';
+
+
+  // Fake typing indicator for demo
+  showTyping();
+  setTimeout(() => addMessage("Hello from Firebase! (stub)", "Bot"), 700);
+};
+chatInput.onkeydown = e => {
+  if (e.key === 'Enter') sendBtn.click();
+  else showTyping();
+};
+
+
+function showTyping() {
+  const ti = document.getElementById('typing-indicator');
+  ti.style.display = 'block';
+  clearTimeout(ti._timer);
+  ti._timer = setTimeout(() => ti.style.display = 'none', 1200);
+}
+
+
+// --- Emoji picker ---
+const emojiBtn = document.getElementById('emoji-btn');
+const emojiPicker = document.getElementById('emoji-picker');
+emojiBtn.onclick = (e) => {
+  e.stopPropagation();
+  emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+};
+emojiPicker.querySelectorAll('span').forEach(span => {
+  span.onclick = () => {
+    chatInput.value += span.textContent;
+    emojiPicker.style.display = 'none';
+    chatInput.focus();
+  };
+});
+document.body.onclick = e => {
+  if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) emojiPicker.style.display = 'none';
+};
+// Prevent body click from closing on emoji click
+emojiPicker.onclick = e => e.stopPropagation();
+
+
+// --- Auth (stub demo) ---
+/* Firebase integration would be added here */
+
+
+// --- Initial state ---
+setTheme('dark');
+openWindow('chat-window');
