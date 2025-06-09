@@ -1,195 +1,409 @@
-﻿Html:
+Html:
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Pusher Chat Demo with Friends Menu</title>
+  <meta charset="UTF-8">
+  <title>RetroConnect - Chat UI</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body { font-family: sans-serif; background: #23272f; color: #fff; margin:0; }
-    #container { display: flex; height: 100vh; }
-    #friendsMenu {
-      width: 180px; background: #181b20; border-right: 1px solid #333; padding: 0;
-      display: flex; flex-direction: column; align-items: stretch;
-    }
-    #friendsTitle { padding: 14px 10px 10px 10px; font-size: 1.1em; color:#8ecaff; }
-    #friendsList { flex: 1; overflow-y: auto; }
-    .friendItem {
-      cursor: pointer;
-      padding: 10px;
-      border-bottom: 1px solid #24262b;
-      color: #fff;
-      background: none;
-      text-align:left;
-      transition: background 0.18s;
-    }
-    .friendItem.selected, .friendItem:hover { background: #2a3140; color: #b3e77a;}
-    #main { flex: 1; display: flex; flex-direction: column; padding: 20px; }
-    #settings { margin-bottom: 12px; padding: 12px; background: #181b20; border-radius: 7px; border: 1px solid #444;}
-    #chat { flex:1; overflow:auto; border:1px solid #444; padding:10px; margin-bottom:10px; background:#181b20; border-radius:7px;}
-    #msg { width: 70%; }
-    #username, #msg { padding: 6px; border-radius: 4px; border: 1px solid #888;}
-    #sendBtn, #joinBtn { padding: 6px 16px; border-radius: 4px; border: none; background: #4b89dc; color: #fff; cursor:pointer;}
-    #sendBtn:disabled { background: #888; cursor: not-allowed;}
-    #joinBtn:disabled { background: #888; cursor: not-allowed;}
-    #loginStatus { margin: 8px 0; color: #b3e77a; }
-    .statusBar { font-size: 0.95em; color: #b3e77a; margin-bottom: 3px; }
-    .welcome { color: #8ecaff; margin-bottom: 10px;}
-    b { color: #ffd966;}
-    @media (max-width: 600px) {
-      #container { flex-direction: column; }
-      #friendsMenu { flex-direction: row; width: 100%; height: auto; border-right: none; border-bottom: 1px solid #333;}
-      #main { padding: 8px;}
-    }
+/* ... (all your existing CSS remains unchanged EXCEPT remove #friendsMenu styling, which is no longer used) ... */
+:root {
+  --bg: #222;
+  --fg: #fff;
+  --accent: #3498db;
+  --window-bg: #333;
+  --header-bg: #444;
+  --border: #555;
+  --input-bg: #222;
+  --input-fg: #fff;
+  --button-bg: #444;
+  --button-fg: #fff;
+  --high-contrast-bg: #000;
+  --high-contrast-fg: #fff;
+}
+/* ... (rest of CSS is the same as previously, but REMOVE the #friendsMenu, #friendsTitle, #friendsList, .friendItem, etc.) ... */
+.window {
+  position: absolute;
+  width: 320px;
+  min-height: 220px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  z-index: 10;
+  top: 80px; left: 80px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  transition: box-shadow 0.2s;
+}
+.window-header {
+  cursor: move;
+  padding: 8px 12px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.window-content {
+  padding: 12px;
+}
+/* ... (rest of CSS unchanged) ... */
   </style>
 </head>
-<body>
-  <div id="container">
-    <div id="friendsMenu">
-      <div id="friendsTitle">Friends</div>
-      <div id="friendsList"></div>
-    </div>
-    <div id="main">
-      <div class="welcome">Welcome to the Pusher Chat Demo!</div>
-      <div id="settings">
-        <label>Username: <input id="username" placeholder="Your name" autocomplete="off"></label>
-        <button id="joinBtn">Join Chat</button>
+<body class="dark">
+  <div id="layout">
+    <!-- Windows -->
+    <div id="windows-root">
+      <!-- Chat Window -->
+      <div class="window draggable" id="chat-window" style="left:240px;top:60px;">
+        <div class="window-header" id="chat-header">
+          Chat
+          <button class="close-btn" onclick="closeWindow('chat-window')">&times;</button>
+        </div>
+        <div class="window-content">
+          <div id="chat-messages"></div>
+          <div class="typing-indicator" id="typing-indicator" style="display:none;">Someone is typing...</div>
+          <div class="chat-input-bar">
+            <button id="emoji-btn">😊</button>
+            <input id="chat-input" placeholder="Type a message..." autocomplete="off"/>
+            <button id="send-btn">Send</button>
+          </div>
+          <div class="emoji-picker" id="emoji-picker">
+            <span>😀</span><span>😁</span><span>😂</span><span>😅</span><span>😊</span><span>😍</span>
+            <span>😎</span><span>😢</span><span>😡</span><span>👍</span><span>🎉</span><span>❤️</span>
+            <span>🔥</span><span>😇</span>
+          </div>
+        </div>
       </div>
-      <div class="statusBar" id="loginStatus"></div>
-      <div id="chat"></div>
-      <input id="msg" placeholder="Type a message..." autocomplete="off" disabled>
-      <button id="sendBtn" disabled>Send</button>
+      <!-- Theme Window -->
+      <div class="window draggable" id="theme-window" style="left:600px;top:60px;">
+        <div class="window-header" id="theme-header">
+          Themes
+          <button class="close-btn" onclick="closeWindow('theme-window')">&times;</button>
+        </div>
+        <div class="window-content">
+          <form class="theme-list" id="theme-form">
+            <label><input type="radio" name="theme" value="dark" checked> Dark Mode</label>
+            <label><input type="radio" name="theme" value="win95"> Classic Windows 95</label>
+            <label><input type="radio" name="theme" value="cyberpunk"> Cyberpunk Neon</label>
+            <label><input type="radio" name="theme" value="light"> Minimalist Light</label>
+            <label><input type="radio" name="theme" value="high-contrast"> High Contrast</label>
+            <label><input type="radio" name="theme" value="custom"> Custom Color
+              <input type="color" id="custom-color" value="#3498db">
+            </label>
+          </form>
+        </div>
+      </div>
+      <!-- Auth/Login Window -->
+      <div class="window draggable" id="auth-window" style="left:920px;top:60px;">
+        <div class="window-header" id="auth-header">
+          Login
+          <button class="close-btn" onclick="closeWindow('auth-window')">&times;</button>
+        </div>
+        <div class="window-content">
+          <button class="login-btn">Login with Google</button>
+          <button class="login-btn">Login with Email</button>
+        </div>
+      </div>
+      <!-- Friends Window -->
+      <div class="window draggable hidden" id="friends-window" style="left:430px;top:200px;">
+        <div class="window-header" id="friends-header">
+          Friends
+          <button class="close-btn" onclick="closeWindow('friends-window')">&times;</button>
+        </div>
+        <div class="window-content" id="friends-window-content">
+          <div style="margin-bottom:8px;">
+            <b>Friend List:</b>
+          </div>
+          <div id="friendsListWindow"></div>
+        </div>
+      </div>
+      <!-- Start Menu -->
+      <div class="window hidden" id="start-menu">
+        <div class="window-header"></div>
+        <div class="window-content">
+          <button onclick="openWindow('chat-window')">Open Chat</button>
+          <button onclick="openWindow('theme-window')">Themes</button>
+          <button onclick="openWindow('friends-window')">Friends</button>
+          <button onclick="openWindow('auth-window')">Login</button>
+        </div>
+      </div>
     </div>
   </div>
-  <script src="https://js.pusher.com/7.2/pusher.min.js"></script>
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <button id="start-btn">Start</button>
+    <div id="taskbar-items" style="margin-left: 12px;"></div>
+    <span id="taskbar-notif"></span>
+    <span id="taskbar-time"></span>
+  </div>
   <script>
-    // ==== CONFIGURATION ====
-    const PUSHER_APP_KEY = 'YOUR_APP_KEY';
-    const PUSHER_CLUSTER = 'YOUR_APP_CLUSTER';
-    const PUSHER_TRIGGER_URL = 'http://localhost:4000/message'; // or your backend URL
-    // Add your friends here (static list for demo)
-    const FRIENDS = ["alice", "bob", "carol", "dave"];
-    // =======================
+///// FRIENDS WINDOW /////
+const FRIENDS = ["alice", "bob", "carol", "dave"];
+let selectedFriend = null;
+function renderFriendsWindow() {
+  const friendsList = document.getElementById('friendsListWindow');
+  friendsList.innerHTML = "";
+  // Group chat
+  const group = document.createElement('div');
+  group.textContent = "🌐 Group Chat";
+  group.className = "friendItem" + (selectedFriend === null ? " selected" : "");
+  group.onclick = function() { selectFriend(null); };
+  friendsList.appendChild(group);
+  // Friends
+  FRIENDS.forEach(friend => {
+    const item = document.createElement('div');
+    item.textContent = "👤 " + friend;
+    item.className = "friendItem" + (selectedFriend === friend ? " selected" : "");
+    item.onclick = function() { selectFriend(friend); };
+    friendsList.appendChild(item);
+  });
+}
+function selectFriend(friend) {
+  selectedFriend = friend;
+  renderFriendsWindow();
+  // For demo: show notification in chat
+  if (friend) {
+    showTaskbarNotif(`Switched to chat with ${friend}`);
+    addMessage(`Switched to chat with ${friend}`, "System");
+  } else {
+    showTaskbarNotif("Switched to group chat");
+    addMessage("Switched to group chat", "System");
+  }
+}
+renderFriendsWindow();
 
 
-    let username = "", currentRoom = "general", channel, pusherClient;
-    let joined = false;
-    let selectedFriend = null;
+///// DRAGGABLE WINDOWS /////
+let currentDrag = null, offsetX = 0, offsetY = 0;
+document.querySelectorAll('.draggable').forEach(win => {
+  const header = win.querySelector('.window-header');
+  header.addEventListener('mousedown', e => {
+    currentDrag = win;
+    offsetX = e.clientX - win.offsetLeft;
+    offsetY = e.clientY - win.offsetTop;
+    win.style.zIndex = 200;
+  });
+});
+window.addEventListener('mousemove', e => {
+  if (!currentDrag) return;
+  currentDrag.style.left = (e.clientX - offsetX) + 'px';
+  currentDrag.style.top = (e.clientY - offsetY) + 'px';
+});
+window.addEventListener('mouseup', () => { currentDrag = null; });
 
 
-    // Build Friends Menu
-    const friendsList = document.getElementById('friendsList');
-    function renderFriendsMenu() {
-      friendsList.innerHTML = "";
-      // Show group/general chat on top
-      const group = document.createElement('div');
-      group.textContent = "🌐 Group Chat";
-      group.className = "friendItem" + (selectedFriend === null ? " selected" : "");
-      group.onclick = function() { selectFriend(null); };
-      friendsList.appendChild(group);
-      // Friends
-      FRIENDS.forEach(friend => {
-        const item = document.createElement('div');
-        item.textContent = "👤 " + friend;
-        item.className = "friendItem" + (selectedFriend === friend ? " selected" : "");
-        item.onclick = function() { selectFriend(friend); };
-        friendsList.appendChild(item);
-      });
+///// WINDOW MANAGEMENT /////
+const windowIds = ['chat-window', 'theme-window', 'auth-window', 'friends-window'];
+let openWindows = ['chat-window','theme-window','auth-window'];
+function openWindow(id) {
+  if (id !== 'start-menu') {
+    const win = document.getElementById(id);
+    win.classList.remove('hidden');
+    // Only add if not already open
+    if (!openWindows.includes(id)) {
+      // Find a non-overlapping position
+      let pos = 60 + openWindows.length * 32;
+      win.style.left = pos + 'px';
+      win.style.top = pos + 'px';
+      win.style.zIndex = 100 + openWindows.length;
+      openWindows.push(id);
+      if(id === "friends-window") renderFriendsWindow();
     }
-    function selectFriend(friend) {
-      if (selectedFriend === friend) return;
-      selectedFriend = friend;
-      renderFriendsMenu();
-      if (!joined) return;
-      // Unsubscribe old channel
-      if (channel) channel.unbind_all() && pusherClient.unsubscribe(channel.name);
-      if (friend) {
-        currentRoom = privateRoomId(username, friend);
-        document.getElementById('loginStatus').textContent = "You are chatting privately with: " + friend;
-      } else {
-        currentRoom = "general";
-        document.getElementById('loginStatus').textContent = "You are in the group chat.";
-      }
-      document.getElementById('chat').innerHTML = "";
-      subscribeToRoom();
-    }
-    // Private room id is always the same for any two users
-    function privateRoomId(user1, user2) {
-      return "private-" + [user1, user2].sort().join('-');
-    }
-    renderFriendsMenu();
+    refreshTaskbar();
+    // Hide start menu if open
+    startMenu.classList.add('hidden');
+    startBtn.classList.remove('active');
+  }
+}
+function closeWindow(id) {
+  document.getElementById(id).classList.add('hidden');
+  openWindows = openWindows.filter(w => w !== id);
+  refreshTaskbar();
+}
+function refreshTaskbar() {
+  const bar = document.getElementById('taskbar-items');
+  bar.innerHTML = '';
+  openWindows.forEach(id => {
+    let label = id.replace('-window', '').replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    bar.innerHTML += `<span onclick="openWindow('${id}')">${label}</span>`;
+  });
+}
+refreshTaskbar();
 
 
-    document.getElementById('sendBtn').disabled = true;
-    document.getElementById('msg').disabled = true;
+///// START MENU /////
+const startBtn = document.getElementById('start-btn');
+const startMenu = document.getElementById('start-menu');
+startBtn.onclick = (e) => {
+  e.stopPropagation();
+  const isOpen = !startMenu.classList.contains('hidden');
+  if (isOpen) {
+    startMenu.classList.add('hidden');
+    startBtn.classList.remove('active');
+  } else {
+    startMenu.classList.remove('hidden');
+    startBtn.classList.add('active');
+  }
+};
+document.body.addEventListener('click', e => {
+  // Close start menu if clicking outside
+  if (!startMenu.contains(e.target) && e.target !== startBtn) {
+    startMenu.classList.add('hidden');
+    startBtn.classList.remove('active');
+  }
+});
+///// THEME SWITCHER /////
+function setTheme(name) {
+  document.body.className = name;
+  if (name === 'custom') {
+    document.body.style.setProperty('--bg', customColor.value);
+    document.body.style.setProperty('--accent', customColor.value);
+  } else {
+    document.body.style = '';
+  }
+}
+const radios = document.querySelectorAll('input[name="theme"]');
+const customColor = document.getElementById('custom-color');
+radios.forEach(radio => radio.onchange = () => setTheme(radio.value));
+customColor.oninput = () => setTheme('custom');
 
 
-    document.getElementById('joinBtn').onclick = function() {
-      username = document.getElementById('username').value.trim().toLowerCase();
-      if (!username) return alert("Enter your name!");
-      if (!FRIENDS.includes(username)) FRIENDS.unshift(username); // add yourself for demo
-      joined = true;
-      renderFriendsMenu();
-      document.getElementById('loginStatus').textContent = "You are in the group chat.";
-      document.getElementById('sendBtn').disabled = false;
-      document.getElementById('msg').disabled = false;
-      document.getElementById('username').disabled = true;
-      document.getElementById('joinBtn').disabled = true;
-      document.getElementById('msg').focus();
-      selectFriend(null);
-    };
+///// TASKBAR LIVE CLOCK /////
+function updateClock() {
+  const now = new Date();
+  let hh = now.getHours().toString().padStart(2, '0');
+  let mm = now.getMinutes().toString().padStart(2, '0');
+  let ss = now.getSeconds().toString().padStart(2, '0');
+  document.getElementById('taskbar-time').textContent = `${hh}:${mm}:${ss}`;
+  setTimeout(updateClock, 1000);
+}
+updateClock();
 
 
-    document.getElementById('username').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') document.getElementById('joinBtn').click();
-    });
+///// TASKBAR NOTIFICATIONS /////
+let notifTimer = null;
+function showTaskbarNotif(msg, timeout=5000) {
+  const notif = document.getElementById('taskbar-notif');
+  notif.textContent = msg;
+  if (notifTimer) clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => { notif.textContent = ''; }, timeout);
+}
 
 
-    document.getElementById('sendBtn').onclick = sendMessage;
-    document.getElementById('msg').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') sendMessage();
-    });
+///// CHAT LOGIC, SPAM PREVENTION, EMOJI PICKER /////
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+let spamTimeout = null;
+let spamQueue = [];
+const SPAM_MAX_QUEUE = 20;
+const SPAM_QUEUE_WINDOW_MS = 60 * 1000;
+const SPAM_BLOCK_TIME_MS = 60 * 1000;
+function setInputDisabled(disabled, msg) {
+  sendBtn.disabled = disabled;
+  chatInput.disabled = disabled;
+  chatInput.placeholder = disabled ? msg : "Type a message...";
+  if (!disabled) chatInput.placeholder = "Type a message...";
+}
+function checkSpamQueue() {
+  const now = Date.now();
+  spamQueue = spamQueue.filter(ts => now - ts < SPAM_QUEUE_WINDOW_MS);
+  return spamQueue.length;
+}
+function addMessage(text, user = "You") {
+  const div = document.createElement('div');
+  div.innerHTML = `<b>${escapeHtml(user)}:</b> ${escapeHtml(text)}`;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  // Show notification if window is not focused and message is from someone else
+  if (!windowHasFocus && user !== "You" && user !== "System") {
+    showTaskbarNotif(`New message from ${user}`);
+    notifyBrowser(`New message from ${user}: ${text}`);
+  }
+}
+sendBtn.onclick = () => {
+  const now = Date.now();
+  const txt = chatInput.value.trim();
+  if (txt === "") return;
+  // --- Advanced spam prevention ---
+  spamQueue.push(now);
+  const msgCount = checkSpamQueue();
+  if (msgCount > SPAM_MAX_QUEUE) {
+    setInputDisabled(true, "Spam detected! Wait 1 min...");
+    spamTimeout = setTimeout(() => {
+      setInputDisabled(false);
+      checkSpamQueue();
+    }, SPAM_BLOCK_TIME_MS);
+    return;
+  }
+  // Passed spam checks
+  addMessage(txt);
+  chatInput.value = '';
+  showTyping();
+  setTimeout(() => addMessage("Hello from the bot! (stub)", "Bot"), 700);
+};
+chatInput.onkeydown = e => {
+  if (e.key === 'Enter') sendBtn.click();
+  else showTyping();
+};
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, s => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[s]));
+}
+///// TYPING INDICATOR /////
+function showTyping() {
+  const ti = document.getElementById('typing-indicator');
+  ti.style.display = 'block';
+  clearTimeout(ti._timer);
+  ti._timer = setTimeout(() => ti.style.display = 'none', 1200);
+}
+///// EMOJI PICKER /////
+const emojiBtn = document.getElementById('emoji-btn');
+const emojiPicker = document.getElementById('emoji-picker');
+emojiBtn.onclick = (e) => {
+  e.stopPropagation();
+  emojiPicker.style.display = emojiPicker.style.display === 'block' ? 'none' : 'block';
+};
+emojiPicker.querySelectorAll('span').forEach(span => {
+  span.onclick = () => {
+    chatInput.value += span.textContent;
+    emojiPicker.style.display = 'none';
+    chatInput.focus();
+  };
+});
+document.body.onclick = e => {
+  if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) emojiPicker.style.display = 'none';
+};
+emojiPicker.onclick = e => e.stopPropagation();
 
 
-    function subscribeToRoom() {
-      if (!pusherClient) {
-        pusherClient = new Pusher(PUSHER_APP_KEY, {
-          cluster: PUSHER_CLUSTER,
-          encrypted: true
-        });
-      }
-      channel = pusherClient.subscribe('chat-' + currentRoom);
-      channel.bind('new-message', function(data) {
-        addMessage(data.user, data.text);
-      });
-    }
-
-
-    function sendMessage() {
-      const text = document.getElementById('msg').value;
-      if (!username || !text) return;
-      fetch(PUSHER_TRIGGER_URL, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({user: username, text, room: currentRoom})
-      });
-      document.getElementById('msg').value = '';
-      document.getElementById('msg').focus();
-    }
-
-
-    function addMessage(user, text) {
-      const chat = document.getElementById('chat');
-      chat.innerHTML += '<div><b>' + escapeHtml(user) + ':</b> ' + escapeHtml(text) + '</div>';
-      chat.scrollTop = chat.scrollHeight;
-    }
-    function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, s => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[s]));
-    }
+///// NOTIFICATIONS /////
+let windowHasFocus = true;
+window.addEventListener('focus', () => {
+  windowHasFocus = true;
+  document.getElementById('taskbar-notif').textContent = '';
+});
+window.addEventListener('blur', () => {
+  windowHasFocus = false;
+});
+if (window.Notification && Notification.permission !== "granted") {
+  Notification.requestPermission();
+}
+function notifyBrowser(msg) {
+  if (window.Notification && Notification.permission === "granted") {
+    new Notification(msg);
+  }
+}
+///// INITIAL STATE /////
+setTheme('dark');
+openWindow('chat-window');
+openWindow('theme-window');
+openWindow('auth-window');
   </script>
 </body>
 </html>
+
+
 
 
 Css:
@@ -399,10 +613,9 @@ body.high-contrast .chat-input-bar, body.high-contrast input, body.high-contrast
 }
 
 
-           Mvds nm n,fesanem dfm fa 
-
-
 Javascript:
+
+
 
 
 // --- Draggable windows ---
